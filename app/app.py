@@ -30,7 +30,8 @@ app.secret_key = 'wastefi_secret_key_change_this_in_production'
 
 # Configuration
 CONFIG = {
-    'interface': 'wlan0',  # WiFi interface
+    'interface_ap': 'wlan0',    # WiFi AP interface (built-in)
+    'interface_wan': None,      # Auto-detected (wlan1 or eth0)
     'session_file': '/tmp/wastefi_sessions.json',
     'max_sessions': 50,
     'cleanup_interval': 60,  # seconds
@@ -40,6 +41,35 @@ CONFIG = {
         'paper': 30
     }
 }
+
+def detect_wan_interface():
+    """Auto-detect WAN interface (prefer wlan1, fallback to eth0)"""
+    try:
+        # Check for default route
+        result = subprocess.run(['ip', 'route'], capture_output=True, text=True)
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if 'default' in line:
+                    if 'wlan1' in line:
+                        return 'wlan1'
+                    elif 'eth0' in line:
+                        return 'eth0'
+        
+        # Fallback: check if interfaces exist
+        for interface in ['wlan1', 'eth0']:
+            result = subprocess.run(['ip', 'link', 'show', interface], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                return interface
+                
+    except Exception as e:
+        logger.error(f"Error detecting WAN interface: {e}")
+    
+    return 'eth0'  # final fallback
+
+# Auto-detect WAN interface on startup
+CONFIG['interface_wan'] = detect_wan_interface()
+logger.info(f"Detected WAN interface: {CONFIG['interface_wan']}")
 
 class SessionManager:
     """Manages client sessions and internet access"""

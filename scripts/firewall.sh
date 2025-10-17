@@ -3,8 +3,23 @@
 # WasteFi Firewall Management Script
 # This script sets up and manages iptables rules for the captive portal
 
-INTERFACE_WAN="eth0"      # Internet connection interface
-INTERFACE_WLAN="wlan0"    # WiFi interface
+# Auto-detect WAN interface (prefer wlan1, fallback to eth0)
+detect_wan_interface() {
+    if ip link show wlan1 >/dev/null 2>&1 && ip route | grep -q "default.*wlan1"; then
+        echo "wlan1"
+    elif ip link show eth0 >/dev/null 2>&1 && ip route | grep -q "default.*eth0"; then
+        echo "eth0"
+    elif ip link show wlan1 >/dev/null 2>&1; then
+        echo "wlan1"
+    elif ip link show eth0 >/dev/null 2>&1; then
+        echo "eth0"
+    else
+        echo "eth0"  # fallback
+    fi
+}
+
+INTERFACE_WAN=$(detect_wan_interface)
+INTERFACE_WLAN="wlan0"    # WiFi AP interface (built-in)
 CAPTIVE_PORTAL_IP="192.168.4.1"  # AP IP address
 PORTAL_PORT="80"
 
@@ -29,6 +44,8 @@ warning() {
 # Function to setup initial firewall rules
 setup_firewall() {
     log "Setting up WasteFi firewall rules..."
+    log "Detected WAN interface: $INTERFACE_WAN"
+    log "Using AP interface: $INTERFACE_WLAN"
     
     # Flush existing rules
     iptables -F
