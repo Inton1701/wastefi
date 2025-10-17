@@ -15,14 +15,16 @@ A complete captive portal system for Raspberry Pi that provides time-based inter
 
 ## 🏗️ Architecture
 
+**Setup A: Direct WiFi AP (Recommended)**
 ```
-Internet (ISP) 
-    ↓ (Ethernet)
-Raspberry Pi
-    ↓ (USB-to-LAN)
-Comfast AP Device (AP Mode)
-    ↓ (WiFi)
-Client Devices
+Internet (ISP WiFi) → USB WiFi Adapter (wlan1) → Raspberry Pi → Built-in WiFi (wlan0) → Client Devices
+                                OR
+Internet (Ethernet) → Ethernet Port (eth0) → Raspberry Pi → Built-in WiFi (wlan0) → Client Devices
+```
+
+**Setup B: Extended Range with External AP**
+```
+Internet (ISP) → Raspberry Pi (eth0/wlan1) → External AP Device → Client Devices
 ```
 
 ### Components
@@ -39,9 +41,11 @@ Client Devices
 
 - Raspberry Pi 3B+ or newer (recommended)
 - MicroSD card (16GB minimum, Class 10)
-- Ethernet connection to ISP
-- USB to Ethernet adapter
-- Comfast WiFi device (or similar AP-capable device)
+- ISP connection via:
+  - **Option A**: Ethernet cable (eth0)
+  - **Option B**: USB WiFi adapter (wlan1) + ISP WiFi credentials
+- Built-in WiFi (wlan0) for Access Point
+- Optional: Comfast device for extended range (bridge mode)
 
 ### Software Requirements
 
@@ -80,7 +84,23 @@ sudo ./scripts/install.sh
 sudo reboot
 ```
 
-### 4. Connect and Test
+### 4. Configure ISP Connection
+
+**Option A: Ethernet (Plug and Play)**
+- Connect Ethernet cable to your Pi
+- System will auto-detect and use eth0
+
+**Option B: WiFi ISP Connection**
+- Connect USB WiFi adapter to Raspberry Pi
+- Access network management: http://192.168.4.1/network
+- Scan and connect to your ISP WiFi
+
+**Option C: Auto-Detection**
+```bash
+sudo wastefi-network auto
+```
+
+### 5. Connect and Test
 
 1. Connect your device to the "WasteFi-Portal" WiFi network
 2. Open a web browser - you'll be automatically redirected to the portal
@@ -166,6 +186,28 @@ sudo journalctl -u wastefi -f
 sudo systemctl restart wastefi
 sudo systemctl restart hostapd
 sudo systemctl restart dnsmasq
+```
+
+### Network Management
+
+```bash
+# Check network status
+sudo wastefi-network status
+
+# Scan for WiFi networks
+sudo wastefi-network scan
+
+# Connect to WiFi ISP
+sudo wastefi-network wifi "MyISP-WiFi" "password123"
+
+# Switch to Ethernet ISP
+sudo wastefi-network switch-ethernet
+
+# Switch to WiFi ISP
+sudo wastefi-network switch-wifi
+
+# Auto-detect best connection
+sudo wastefi-network auto
 ```
 
 ### Firewall Management

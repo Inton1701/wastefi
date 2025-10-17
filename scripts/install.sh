@@ -177,11 +177,13 @@ setup_service() {
 setup_firewall() {
     log "Setting up firewall..."
     
-    # Make firewall script executable
+    # Make scripts executable
     chmod +x "$INSTALL_DIR/scripts/firewall.sh"
+    chmod +x "$INSTALL_DIR/scripts/network.sh"
     
-    # Create symlink for easy access
+    # Create symlinks for easy access
     ln -sf "$INSTALL_DIR/scripts/firewall.sh" "/usr/local/bin/wastefi-firewall"
+    ln -sf "$INSTALL_DIR/scripts/network.sh" "/usr/local/bin/wastefi-network"
     
     # Setup initial firewall rules
     "$INSTALL_DIR/scripts/firewall.sh" setup
@@ -260,6 +262,10 @@ ip addr show wlan0 | grep inet
 echo ""  
 echo "Connected Clients:"
 arp -a | grep "192.168.4"
+
+echo ""
+echo "Network Interfaces:"
+/home/pi/wastefi/scripts/network.sh status
 
 echo ""
 echo "Active Sessions:"

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Management - WasteFi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .network-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .interface-status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-up { background-color: #48bb78; }
+        .status-down { background-color: #e53e3e; }
+        .status-unavailable { background-color: #a0aec0; }
+        
+        .wifi-form {
+            display: grid;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .wifi-networks {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .wifi-network {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .wifi-network:hover {
+            background-color: #f7fafc;
+        }
+        
+        .wifi-network:last-child {
+            border-bottom: none;
+        }
+        
+        .network-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .network-info {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-top: 2px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .alert-success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #2f855a;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+        }
+        
+        .alert-info {
+            background: #ebf8ff;
+            border: 1px solid #90cdf4;
+            color: #2c5282;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 WasteFi</h1>
+            <p class="subtitle">Network Management</p>
+        </header>
+        
+        <main>
+            <!-- Network Status -->
+            <div class="network-card">
+                <h2>Network Status</h2>
+                <div id="network-status">
+                    <div class="loading">Loading network status...</div>
+                </div>
+                <div class="action-buttons">
+                    <button onclick="refreshStatus()" class="btn btn-secondary">Refresh Status</button>
+                    <button onclick="autoDetect()" class="btn btn-success">Auto-Detect Connection</button>
+                </div>
+            </div>
+            
+            <!-- WiFi Configuration -->
+            <div class="network-card">
+                <h2>WiFi ISP Configuration (wlan1)</h2>
+                <p>Configure your Raspberry Pi to connect to an ISP WiFi network via USB WiFi adapter.</p>
+                
+                <div class="action-buttons">
+                    <button onclick="scanWiFi()" class="btn btn-primary" id="scan-btn">Scan for Networks</button>
+                    <button onclick="switchToWiFi()" class="btn btn-success">Switch to WiFi</button>
+                </div>
+                
+                <div id="wifi-networks" style="display: none;">
+                    <h3>Available Networks</h3>
+                    <div id="networks-list" class="wifi-networks">
+                        <div class="loading">Scanning...</div>
+                    </div>
+                </div>
+                
+                <div id="wifi-config" style="display: none;">
+                    <h3>Connect to WiFi Network</h3>
+                    <div class="wifi-form">
+                        <div class="form-group">
+                            <label for="wifi-ssid">Network Name (SSID):</label>
+                            <input type="text" id="wifi-ssid" placeholder="Enter network name">
+                        </div>
+                        <div class="form-group">
+                            <label for="wifi-password">Password:</label>
+                            <input type="password" id="wifi-password" placeholder="Enter password (leave empty for open networks)">
+                        </div>
+                        <div class="action-buttons">
+                            <button onclick="connectWiFi()" class="btn btn-primary">Connect</button>
+                            <button onclick="hideWiFiConfig()" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ethernet Configuration -->
+            <div class="network-card">
+                <h2>Ethernet ISP Configuration (eth0)</h2>
+                <p>Use wired Ethernet connection for ISP connectivity.</p>
+                
+                <div class="action-buttons">
+                    <button onclick="switchToEthernet()" class="btn btn-success">Switch to Ethernet</button>
+                    <button onclick="configureEthernet()" class="btn btn-warning">Configure Ethernet</button>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="network-card">
+                <h2>Navigation</h2>
+                <div class="action-buttons">
+                    <a href="/" class="btn btn-primary">Back to Portal</a>
+                    <a href="/status" class="btn btn-secondary">Connection Status</a>
+                </div>
+            </div>
+            
+            <!-- Messages -->
+            <div id="messages"></div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 WasteFi - Network Management</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Auto-refresh status every 30 seconds
+        let statusInterval;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshStatus();
+            statusInterval = setInterval(refreshStatus, 30000);
+        });
+        
+        function refreshStatus() {
+            fetch('/api/network-status')
+                .then(response => response.json())
+                .then(data => {
+                    updateNetworkStatus(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching network status:', error);
+                    showMessage('Error fetching network status', 'error');
+                });
+        }
+        
+        function updateNetworkStatus(data) {
+            const statusDiv = document.getElementById('network-status');
+            
+            let html = '<h3>Interface Status</h3>';
+            
+            for (const [name, info] of Object.entries(data.interfaces)) {
+                let statusClass = 'status-unavailable';
+                let statusText = 'Unavailable';
+                
+                if (info.exists) {
+                    if (info.up) {
+                        statusClass = 'status-up';
+                        statusText = 'UP';
+                    } else {
+                        statusClass = 'status-down';
+                        statusText = 'DOWN';
+                    }
+                }
+                
+                html += `
+                    <div class="interface-status">
+                        <div class="status-indicator ${statusClass}"></div>
+                        <strong>${name}</strong> (${info.role || 'N/A'}): ${statusText}
+                        ${info.ip ? ` - ${info.ip}` : ''}
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div style="margin-top: 15px;">
+                    <strong>Active WAN Interface:</strong> ${data.wan_interface}<br>
+                    <strong>Internet Connectivity:</strong> ${data.internet_connectivity ? '✅ Connected' : '❌ No Internet'}
+                </div>
+            `;
+            
+            statusDiv.innerHTML = html;
+        }
+        
+        function scanWiFi() {
+            const scanBtn = document.getElementById('scan-btn');
+            const networksDiv = document.getElementById('wifi-networks');
+            const networksList = document.getElementById('networks-list');
+            
+            scanBtn.disabled = true;
+            scanBtn.textContent = 'Scanning...';
+            networksDiv.style.display = 'block';
+            networksList.innerHTML = '<div class="loading">Scanning for networks...</div>';
+            
+            // Simulate WiFi scan (replace with actual API call)
+            setTimeout(() => {
+                networksList.innerHTML = `
+                    <div class="wifi-network" onclick="selectNetwork('MyISP-WiFi', true)">
+                        <div class="network-name">MyISP-WiFi</div>
+                        <div class="network-info">Signal: Strong • Security: WPA2</div>
+                    </div>
+                    <div class="wifi-network" onclick="selectNetwork('FreeWiFi', false)">
+                        <div class="network-name">FreeWiFi</div>
+                        <div class="network-info">Signal: Medium • Security: Open</div>
+                    </div>
+                    <div class="wifi-network" onclick="selectNetwork('Neighbor-5G', true)">
+                        <div class="network-name">Neighbor-5G</div>
+                        <div class="network-info">Signal: Weak • Security: WPA2</div>
+                    </div>
+                `;
+                
+                scanBtn.disabled = false;
+                scanBtn.textContent = 'Scan for Networks';
+            }, 2000);
+        }
+        
+        function selectNetwork(ssid, requiresPassword) {
+            document.getElementById('wifi-ssid').value = ssid;
+            document.getElementById('wifi-password').value = '';
+            document.getElementById('wifi-config').style.display = 'block';
+            
+            if (!requiresPassword) {
+                document.getElementById('wifi-password').placeholder = 'No password required (open network)';
+            } else {
+                document.getElementById('wifi-password').placeholder = 'Enter network password';
+            }
+        }
+        
+        function connectWiFi() {
+            const ssid = document.getElementById('wifi-ssid').value;
+            const password = document.getElementById('wifi-password').value;
+            
+            if (!ssid) {
+                showMessage('Please enter a network name', 'error');
+                return;
+            }
+            
+            showMessage('Connecting to WiFi network...', 'info');
+            
+            // Simulate connection (replace with actual API call)
+            fetch('/api/configure-wifi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ssid: ssid,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('WiFi connected successfully!', 'success');
+                    hideWiFiConfig();
+                    setTimeout(refreshStatus, 2000);
+                } else {
+                    showMessage('WiFi connection failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+            });
+        }
+        
+        function hideWiFiConfig() {
+            document.getElementById('wifi-config').style.display = 'none';
+        }
+        
+        function switchToWiFi() {
+            showMessage('Switching to WiFi connection...', 'info');
+            
+            fetch('/api/switch-wan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    interface: 'wlan1'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Switched to WiFi successfully!', 'success');
+                    setTimeout(refreshStatus, 2000);
+                } else {
+                    showMessage('Failed to switch to WiFi: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+            });
+        }
+        
+        function switchToEthernet() {
+            showMessage('Switching to Ethernet connection...', 'info');
+            
+            fetch('/api/switch-wan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    interface: 'eth0'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Switched to Ethernet successfully!', 'success');
+                    setTimeout(refreshStatus, 2000);
+                } else {
+                    showMessage('Failed to switch to Ethernet: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+            });
+        }
+        
+        function configureEthernet() {
+            showMessage('Configuring Ethernet connection...', 'info');
+            
+            fetch('/api/configure-ethernet', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Ethernet configured successfully!', 'success');
+                    setTimeout(refreshStatus, 2000);
+                } else {
+                    showMessage('Failed to configure Ethernet: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+            });
+        }
+        
+        function autoDetect() {
+            showMessage('Auto-detecting best connection...', 'info');
+            
+            fetch('/api/auto-detect', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage(`Auto-detection complete! Using ${data.interface}`, 'success');
+                    setTimeout(refreshStatus, 2000);
+                } else {
+                    showMessage('Auto-detection failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Network error: ' + error.message, 'error');
+            });
+        }
+        
+        function showMessage(message, type) {
+            const messagesDiv = document.getElementById('messages');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            messagesDiv.appendChild(alertDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

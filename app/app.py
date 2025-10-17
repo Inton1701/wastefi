@@ -291,6 +291,11 @@ def status():
     
     return render_template('status.html', session=session)
 
+@app.route('/network')
+def network_management():
+    """Network management page"""
+    return render_template('network.html')
+
 @app.route('/api/device-info')
 def api_device_info():
     """API endpoint to get device information"""
@@ -299,8 +304,68 @@ def api_device_info():
     return jsonify({
         'ip': client_ip,
         'mac': client_mac,
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'system': {
+            'ap_interface': CONFIG['interface_ap'],
+            'wan_interface': CONFIG['interface_wan']
+        }
     })
+
+@app.route('/api/network-status')
+def api_network_status():
+    """API endpoint to get network interface status"""
+    try:
+        # Get interface information
+        interfaces = {}
+        
+        for interface in ['wlan0', 'wlan1', 'eth0']:
+            try:
+                result = subprocess.run(['ip', 'addr', 'show', interface], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    # Extract IP address
+                    ip = None
+                    for line in result.stdout.split('\n'):
+                        if 'inet ' in line and 'scope global' in line:
+                            ip = line.strip().split()[1]
+                            break
+                    
+                    # Check if interface is up
+                    link_result = subprocess.run(['ip', 'link', 'show', interface], 
+                                               capture_output=True, text=True)
+                    is_up = 'state UP' in link_result.stdout if link_result.returncode == 0 else False
+                    
+                    interfaces[interface] = {
+                        'exists': True,
+                        'up': is_up,
+                        'ip': ip,
+                        'role': 'AP' if interface == 'wlan0' else ('WAN' if interface == CONFIG['interface_wan'] else 'Available')
+                    }
+                else:
+                    interfaces[interface] = {'exists': False}
+            except Exception as e:
+                logger.error(f"Error checking interface {interface}: {e}")
+                interfaces[interface] = {'exists': False, 'error': str(e)}
+        
+        # Check internet connectivity
+        internet_ok = False
+        try:
+            result = subprocess.run(['ping', '-c', '1', '-W', '2', '8.8.8.8'], 
+                                  capture_output=True, text=True)
+            internet_ok = result.returncode == 0
+        except:
+            pass
+        
+        return jsonify({
+            'interfaces': interfaces,
+            'wan_interface': CONFIG['interface_wan'],
+            'internet_connectivity': internet_ok,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting network status: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/activate', methods=['POST'])
 def api_activate():
@@ -366,6 +431,122 @@ def api_status():
         })
     
     return jsonify({'connected': False})
+
+@app.route('/api/configure-wifi', methods=['POST'])
+def api_configure_wifi():
+    """API endpoint to configure WiFi connection"""
+    try:
+        data = request.get_json()
+        ssid = data.get('ssid')
+        password = data.get('password', '')
+        
+        if not ssid:
+            return jsonify({'success': False, 'error': 'SSID is required'})
+        
+        # Call network configuration script
+        cmd = ['/home/pi/wastefi/scripts/network.sh', 'wifi', ssid]
+        if password:
+            cmd.append(password)
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Update WAN interface configuration
+            CONFIG['interface_wan'] = 'wlan1'
+            return jsonify({
+                'success': True, 
+                'message': 'WiFi configured successfully'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': result.stderr or 'Configuration failed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error configuring WiFi: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/configure-ethernet', methods=['POST'])
+def api_configure_ethernet():
+    """API endpoint to configure Ethernet connection"""
+    try:
+        result = subprocess.run(['/home/pi/wastefi/scripts/network.sh', 'ethernet'], 
+                               capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            CONFIG['interface_wan'] = 'eth0'
+            return jsonify({
+                'success': True, 
+                'message': 'Ethernet configured successfully'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': result.stderr or 'Configuration failed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error configuring Ethernet: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/switch-wan', methods=['POST'])
+def api_switch_wan():
+    """API endpoint to switch WAN interface"""
+    try:
+        data = request.get_json()
+        interface = data.get('interface')
+        
+        if interface not in ['wlan1', 'eth0']:
+            return jsonify({'success': False, 'error': 'Invalid interface'})
+        
+        if interface == 'wlan1':
+            cmd = '/home/pi/wastefi/scripts/network.sh switch-wifi'
+        else:
+            cmd = '/home/pi/wastefi/scripts/network.sh switch-ethernet'
+        
+        result = subprocess.run(cmd.split(), capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            CONFIG['interface_wan'] = interface
+            return jsonify({
+                'success': True, 
+                'message': f'Switched to {interface} successfully'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': result.stderr or 'Switch failed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error switching WAN interface: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/auto-detect', methods=['POST'])
+def api_auto_detect():
+    """API endpoint to auto-detect and configure best connection"""
+    try:
+        result = subprocess.run(['/home/pi/wastefi/scripts/network.sh', 'auto'], 
+                               capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Re-detect WAN interface
+            CONFIG['interface_wan'] = detect_wan_interface()
+            return jsonify({
+                'success': True, 
+                'interface': CONFIG['interface_wan'],
+                'message': 'Auto-detection completed successfully'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'error': result.stderr or 'Auto-detection failed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in auto-detection: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.errorhandler(404)
 def not_found(error):
