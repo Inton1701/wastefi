@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Granted - WasteFi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 WasteFi</h1>
+            <p class="subtitle">Access Granted</p>
+        </header>
+        
+        <main>
+            <div class="success-page">
+                <div class="success-icon">✅</div>
+                <h2>Internet Access Active!</h2>
+                <p>You now have internet access. Enjoy browsing!</p>
+                
+                <div class="session-info">
+                    <div class="info-card">
+                        <h3>Session Details</h3>
+                        <div class="info-row">
+                            <span>Type:</span>
+                            <span class="value">{{ session.type.title() }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Duration:</span>
+                            <span class="value">{{ session.duration }} seconds</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Started:</span>
+                            <span class="value">{{ session.start_time.strftime('%H:%M:%S') }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Time Remaining:</span>
+                            <span class="value countdown" id="remaining-time">{{ session.remaining_time }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <a href="http://google.com" class="btn-primary" target="_blank">Test Connection</a>
+                    <a href="/status" class="btn-secondary">View Status</a>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 WasteFi - Eco-Friendly Internet Access</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Start countdown timer
+        let remainingTime = {{ session.remaining_time }};
+        const timerElement = document.getElementById('remaining-time');
+        
+        function updateCountdown() {
+            if (remainingTime <= 0) {
+                timerElement.textContent = 'Expired';
+                timerElement.style.color = '#e53e3e';
+                // Redirect to main page when expired
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                return;
+            }
+            
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            remainingTime--;
+            setTimeout(updateCountdown, 1000);
+        }
+        
+        updateCountdown();
+    </script>
+</body>
+</html>

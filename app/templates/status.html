@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status - WasteFi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 WasteFi</h1>
+            <p class="subtitle">Connection Status</p>
+        </header>
+        
+        <main>
+            <div class="status-page">
+                {% if session and session.active %}
+                <div class="status-card active">
+                    <div class="status-icon">🟢</div>
+                    <h2>Connection Active</h2>
+                    <p>Your internet access is currently active.</p>
+                    
+                    <div class="session-details">
+                        <div class="detail-item">
+                            <span class="label">Type:</span>
+                            <span class="value">{{ session.type.title() }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Duration:</span>
+                            <span class="value">{{ session.duration }} seconds</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Started:</span>
+                            <span class="value">{{ session.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Time Remaining:</span>
+                            <span class="value countdown" id="countdown">Loading...</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Device IP:</span>
+                            <span class="value">{{ session.client_ip }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">MAC Address:</span>
+                            <span class="value">{{ session.client_mac }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="status-card inactive">
+                    <div class="status-icon">🔴</div>
+                    <h2>No Active Connection</h2>
+                    <p>You don't have an active internet session.</p>
+                    <a href="/" class="btn-primary">Get Access</a>
+                </div>
+                {% endif %}
+                
+                <div class="action-section">
+                    <a href="/" class="btn-secondary">Back to Portal</a>
+                    <button onclick="location.reload()" class="btn-primary">Refresh Status</button>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 WasteFi - Eco-Friendly Internet Access</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Update countdown if session is active
+        {% if session and session.active %}
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    const countdownElement = document.getElementById('countdown');
+                    if (data.connected && data.remaining_time > 0) {
+                        const minutes = Math.floor(data.remaining_time / 60);
+                        const seconds = data.remaining_time % 60;
+                        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    } else {
+                        countdownElement.textContent = 'Expired';
+                        countdownElement.style.color = '#e53e3e';
+                        // Reload page to show inactive status
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating status:', error);
+                });
+        }
+        
+        // Update every second
+        setInterval(updateStatus, 1000);
+        updateStatus(); // Initial call
+        {% endif %}
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+[Unit]
+Description=WasteFi WiFi Vendo Service
+After=network.target hostapd.service dnsmasq.service
+Wants=hostapd.service dnsmasq.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/wastefi/app
+Environment=PYTHONPATH=/home/pi/wastefi/app
+Environment=FLASK_APP=app.py
+Environment=FLASK_ENV=production
+ExecStart=/usr/bin/python3 /home/pi/wastefi/app/app.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=wastefi
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/pi/wastefi/logs /tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

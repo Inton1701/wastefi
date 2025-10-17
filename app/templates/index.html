@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WasteFi - WiFi Vendo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 WasteFi</h1>
+            <p class="subtitle">WiFi Vendo Portal</p>
+        </header>
+        
+        <main>
+            <div class="welcome-card">
+                <h2>Welcome to WasteFi!</h2>
+                <p>Select your internet access duration:</p>
+            </div>
+            
+            <div class="options-grid">
+                <div class="option-card plastic" data-duration="10" data-type="plastic">
+                    <div class="icon">♻️</div>
+                    <h3>Plastic</h3>
+                    <div class="duration">10 seconds</div>
+                    <div class="price">Basic Access</div>
+                </div>
+                
+                <div class="option-card metal" data-duration="20" data-type="metal">
+                    <div class="icon">⚙️</div>
+                    <h3>Metal</h3>
+                    <div class="duration">20 seconds</div>
+                    <div class="price">Standard Access</div>
+                </div>
+                
+                <div class="option-card paper" data-duration="30" data-type="paper">
+                    <div class="icon">📄</div>
+                    <h3>Paper</h3>
+                    <div class="duration">30 seconds</div>
+                    <div class="price">Premium Access</div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="device-info">
+                    <p><strong>Your Device:</strong> <span id="device-ip">Loading...</span></p>
+                    <p><strong>MAC Address:</strong> <span id="device-mac">Loading...</span></p>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 WasteFi - Eco-Friendly Internet Access</p>
+        </footer>
+    </div>
+    
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="modal">
+        <div class="modal-content">
+            <div class="loading-spinner"></div>
+            <h3>Activating Internet Access...</h3>
+            <p id="loading-message">Please wait while we set up your connection.</p>
+        </div>
+    </div>
+    
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content success">
+            <div class="success-icon">✅</div>
+            <h3>Access Granted!</h3>
+            <p>Your internet access is now active.</p>
+            <div class="timer-display">
+                <span>Time remaining: </span>
+                <span id="countdown-timer">--:--</span>
+            </div>
+            <button id="close-success" class="btn-primary">Continue Browsing</button>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
