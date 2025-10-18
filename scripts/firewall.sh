@@ -3,24 +3,24 @@
 # WasteFi Firewall Management Script
 # This script sets up and manages iptables rules for the captive portal
 
-# Auto-detect WAN interface (prefer wlan1, fallback to eth0)
+# Auto-detect WAN interface (ISP connection - prefer eth0, fallback to wlan1)
 detect_wan_interface() {
-    if ip link show wlan1 >/dev/null 2>&1 && ip route | grep -q "default.*wlan1"; then
-        echo "wlan1"
-    elif ip link show eth0 >/dev/null 2>&1 && ip route | grep -q "default.*eth0"; then
+    if ip link show eth0 >/dev/null 2>&1 && ip route | grep -q "default.*eth0"; then
         echo "eth0"
-    elif ip link show wlan1 >/dev/null 2>&1; then
+    elif ip link show wlan1 >/dev/null 2>&1 && ip route | grep -q "default.*wlan1"; then
         echo "wlan1"
     elif ip link show eth0 >/dev/null 2>&1; then
         echo "eth0"
+    elif ip link show wlan1 >/dev/null 2>&1; then
+        echo "wlan1"
     else
         echo "eth0"  # fallback
     fi
 }
 
 INTERFACE_WAN=$(detect_wan_interface)
-INTERFACE_WLAN="wlan0"    # WiFi AP interface (built-in)
-CAPTIVE_PORTAL_IP="192.168.4.1"  # AP IP address
+INTERFACE_AP="eth1"       # USB-to-Ethernet connection to Comfast AP
+CAPTIVE_PORTAL_IP="192.168.4.1"  # AP network gateway
 PORTAL_PORT="80"
 
 # Colors for output
@@ -44,8 +44,8 @@ warning() {
 # Function to setup initial firewall rules
 setup_firewall() {
     log "Setting up WasteFi firewall rules..."
-    log "Detected WAN interface: $INTERFACE_WAN"
-    log "Using AP interface: $INTERFACE_WLAN"
+    log "Detected WAN interface: $INTERFACE_WAN (ISP connection)"
+    log "Using AP interface: $INTERFACE_AP (connection to Comfast AP)"
     
     # Flush existing rules
     iptables -F
@@ -84,19 +84,19 @@ setup_firewall() {
     iptables -t nat -A POSTROUTING -o $INTERFACE_WAN -j MASQUERADE
     
     # Redirect HTTP requests to captive portal
-    iptables -t nat -A PREROUTING -i $INTERFACE_WLAN -p tcp --dport 80 \
+    iptables -t nat -A PREROUTING -i $INTERFACE_AP -p tcp --dport 80 \
         -j DNAT --to-destination $CAPTIVE_PORTAL_IP:$PORTAL_PORT
     
     # Redirect HTTPS requests to captive portal (HTTP)
-    iptables -t nat -A PREROUTING -i $INTERFACE_WLAN -p tcp --dport 443 \
+    iptables -t nat -A PREROUTING -i $INTERFACE_AP -p tcp --dport 443 \
         -j DNAT --to-destination $CAPTIVE_PORTAL_IP:$PORTAL_PORT
     
     # Block all forwarding by default (clients have no internet access initially)
-    iptables -A FORWARD -i $INTERFACE_WLAN -o $INTERFACE_WAN -j DROP
-    iptables -A FORWARD -i $INTERFACE_WAN -o $INTERFACE_WLAN -j DROP
+    iptables -A FORWARD -i $INTERFACE_AP -o $INTERFACE_WAN -j DROP
+    iptables -A FORWARD -i $INTERFACE_WAN -o $INTERFACE_AP -j DROP
     
     # Allow local communication for captive portal
-    iptables -A FORWARD -i $INTERFACE_WLAN -d $CAPTIVE_PORTAL_IP -j ACCEPT
+    iptables -A FORWARD -i $INTERFACE_AP -d $CAPTIVE_PORTAL_IP -j ACCEPT
     
     log "Firewall rules setup complete"
 }

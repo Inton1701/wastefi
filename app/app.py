@@ -30,8 +30,8 @@ app.secret_key = 'wastefi_secret_key_change_this_in_production'
 
 # Configuration
 CONFIG = {
-    'interface_ap': 'wlan0',    # WiFi AP interface (built-in)
-    'interface_wan': None,      # Auto-detected (wlan1 or eth0)
+    'interface_ap': 'eth1',     # USB-to-Ethernet connection to Comfast AP
+    'interface_wan': None,      # Auto-detected (eth0 or wlan1 for ISP)
     'session_file': '/tmp/wastefi_sessions.json',
     'max_sessions': 50,
     'cleanup_interval': 60,  # seconds
@@ -43,20 +43,20 @@ CONFIG = {
 }
 
 def detect_wan_interface():
-    """Auto-detect WAN interface (prefer wlan1, fallback to eth0)"""
+    """Auto-detect WAN interface (prefer eth0 for ISP, fallback to wlan1)"""
     try:
         # Check for default route
         result = subprocess.run(['ip', 'route'], capture_output=True, text=True)
         if result.returncode == 0:
             for line in result.stdout.split('\n'):
                 if 'default' in line:
-                    if 'wlan1' in line:
-                        return 'wlan1'
-                    elif 'eth0' in line:
+                    if 'eth0' in line:
                         return 'eth0'
+                    elif 'wlan1' in line:
+                        return 'wlan1'
         
-        # Fallback: check if interfaces exist
-        for interface in ['wlan1', 'eth0']:
+        # Fallback: check if interfaces exist (prefer eth0 for ISP)
+        for interface in ['eth0', 'wlan1']:
             result = subprocess.run(['ip', 'link', 'show', interface], 
                                   capture_output=True, text=True)
             if result.returncode == 0:

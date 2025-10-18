@@ -1,7 +1,7 @@
 [Unit]
 Description=WasteFi WiFi Vendo Service
-After=network.target hostapd.service dnsmasq.service
-Wants=hostapd.service dnsmasq.service
+After=network.target dnsmasq.service
+Wants=dnsmasq.service
 Requires=network.target
 
 [Service]
@@ -12,7 +12,7 @@ WorkingDirectory=/home/pi/wastefi/app
 Environment=PYTHONPATH=/home/pi/wastefi/app
 Environment=FLASK_APP=app.py
 Environment=FLASK_ENV=production
-ExecStart=/usr/bin/python3 /home/pi/wastefi/app/app.py
+ExecStart=/usr/bin/python3 /home/pi/wastefi/app/launcher.py
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5

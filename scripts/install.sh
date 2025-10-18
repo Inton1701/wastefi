@@ -93,8 +93,32 @@ install_packages() {
 install_python_deps() {
     log "Installing Python dependencies..."
     
-    pip3 install --upgrade pip
-    pip3 install flask werkzeug
+    # For newer Raspberry Pi OS with externally-managed-environment
+    # Use system packages first, then virtual environment if needed
+    
+    # Try to install via apt first (recommended)
+    log "Installing Python packages via apt..."
+    apt install -y python3-flask python3-werkzeug python3-pip python3-venv python3-full
+    
+    # Check if Flask is available
+    if python3 -c "import flask; print('Flask available via system packages')" 2>/dev/null; then
+        log "Flask successfully installed via system packages"
+    else
+        log "System packages not sufficient, creating virtual environment..."
+        
+        # Create virtual environment for WasteFi
+        python3 -m venv "$INSTALL_DIR/venv"
+        
+        # Install packages in virtual environment
+        "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
+        "$INSTALL_DIR/venv/bin/pip" install flask werkzeug
+        
+        # Update the systemd service to use virtual environment
+        sed -i "s|ExecStart=/usr/bin/python3|ExecStart=$INSTALL_DIR/venv/bin/python3|g" "$INSTALL_DIR/config/wastefi.service"
+        sed -i "s|Environment=PYTHONPATH=/home/pi/wastefi/app|Environment=PYTHONPATH=$INSTALL_DIR/app|g" "$INSTALL_DIR/config/wastefi.service"
+        
+        log "Virtual environment created and configured"
+    fi
     
     log "Python dependencies installed"
 }
